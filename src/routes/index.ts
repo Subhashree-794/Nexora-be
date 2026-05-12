@@ -22,21 +22,14 @@ export async function registerRoutes(app: FastifyInstance) {
   app.get('/api/auth/me', { preHandler: [authenticate] }, auth.getMe);
 
   // ── Clubs ─────────────────────────────────────────────────────────────────
-  app.get('/api/clubs/public', clubs.getAllPublicClubs);
-  app.post('/api/clubs/:clubId/join-requests', clubs.requestToJoin);
-
   app.get('/api/clubs', { preHandler: [authenticate] }, clubs.getMyClubs);
   app.post('/api/clubs', { preHandler: [authenticate] }, clubs.createClub);
   app.get('/api/clubs/:clubId', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, clubs.getClub);
-  app.patch('/api/clubs/:clubId', { preHandler: [authenticate, requireClubRole(ClubRole.OWNER)] }, clubs.updateClub);
+  app.patch('/api/clubs/:clubId', { preHandler: [authenticate, requireClubRole(ClubRole.ADMIN)] }, clubs.updateClub);
   app.delete('/api/clubs/:clubId', { preHandler: [authenticate, requireClubRole(ClubRole.OWNER)] }, clubs.deleteClub);
-  app.post('/api/clubs/:clubId/members', { preHandler: [authenticate, requireClubRole(ClubRole.OWNER)] }, clubs.inviteMember);
-  app.patch('/api/clubs/:clubId/members/:userId', { preHandler: [authenticate, requireClubRole(ClubRole.OWNER)] }, clubs.updateMemberRole);
-  app.delete('/api/clubs/:clubId/members/:userId', { preHandler: [authenticate, requireClubRole(ClubRole.OWNER)] }, clubs.removeMember);
-  
-  app.get('/api/clubs/:clubId/join-requests', { preHandler: [authenticate, requireClubRole(ClubRole.OWNER)] }, clubs.getJoinRequests);
-  app.post('/api/clubs/:clubId/join-requests/:requestId/approve', { preHandler: [authenticate, requireClubRole(ClubRole.OWNER)] }, clubs.approveJoinRequest);
-  app.post('/api/clubs/:clubId/join-requests/:requestId/reject', { preHandler: [authenticate, requireClubRole(ClubRole.OWNER)] }, clubs.rejectJoinRequest);
+  app.post('/api/clubs/:clubId/members', { preHandler: [authenticate, requireClubRole(ClubRole.ADMIN)] }, clubs.inviteMember);
+  app.patch('/api/clubs/:clubId/members/:userId', { preHandler: [authenticate, requireClubRole(ClubRole.ADMIN)] }, clubs.updateMemberRole);
+  app.delete('/api/clubs/:clubId/members/:userId', { preHandler: [authenticate, requireClubRole(ClubRole.ADMIN)] }, clubs.removeMember);
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
   app.get('/api/clubs/:clubId/dashboard', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, dashboard.getDashboard);
@@ -46,21 +39,19 @@ export async function registerRoutes(app: FastifyInstance) {
 
   // ── Meetings ──────────────────────────────────────────────────────────────
   app.get('/api/clubs/:clubId/meetings', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, meetings.getMeetings);
-  app.post('/api/clubs/:clubId/meetings', { preHandler: [authenticate, requireClubRole(ClubRole.CORE_MEMBER)] }, meetings.createMeeting);
+  app.post('/api/clubs/:clubId/meetings', { preHandler: [authenticate, requireClubRole(ClubRole.ADMIN)] }, meetings.createMeeting);
   app.get('/api/clubs/:clubId/meetings/:meetingId', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, meetings.getMeeting);
-  app.patch('/api/clubs/:clubId/meetings/:meetingId', { preHandler: [authenticate, requireClubRole(ClubRole.CORE_MEMBER)] }, meetings.updateMeeting);
-  app.delete('/api/clubs/:clubId/meetings/:meetingId', { preHandler: [authenticate, requireClubRole(ClubRole.CORE_MEMBER)] }, meetings.deleteMeeting);
-  // MoM
+  app.patch('/api/clubs/:clubId/meetings/:meetingId', { preHandler: [authenticate, requireClubRole(ClubRole.ADMIN)] }, meetings.updateMeeting);
+  app.delete('/api/clubs/:clubId/meetings/:meetingId', { preHandler: [authenticate, requireClubRole(ClubRole.ADMIN)] }, meetings.deleteMeeting);
   app.post('/api/clubs/:clubId/meetings/:meetingId/mom', { preHandler: [authenticate, requireClubRole(ClubRole.CORE_MEMBER)] }, meetings.createMoM);
   app.patch('/api/clubs/:clubId/meetings/:meetingId/mom/:momId', { preHandler: [authenticate, requireClubRole(ClubRole.CORE_MEMBER)] }, meetings.updateMoM);
 
   // ── Tasks ─────────────────────────────────────────────────────────────────
   app.get('/api/clubs/:clubId/tasks', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, tasks.getTasks);
-  app.post('/api/clubs/:clubId/tasks', { preHandler: [authenticate, requireClubRole(ClubRole.CORE_MEMBER)] }, tasks.createTask);
+  app.post('/api/clubs/:clubId/tasks', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, tasks.createTask);
   app.get('/api/clubs/:clubId/tasks/:taskId', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, tasks.getTask);
   app.patch('/api/clubs/:clubId/tasks/:taskId', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, tasks.updateTask);
-  app.delete('/api/clubs/:clubId/tasks/:taskId', { preHandler: [authenticate, requireClubRole(ClubRole.CORE_MEMBER)] }, tasks.deleteTask);
-  // Comments
+  app.delete('/api/clubs/:clubId/tasks/:taskId', { preHandler: [authenticate, requireClubRole(ClubRole.ADMIN)] }, tasks.deleteTask);
   app.get('/api/clubs/:clubId/tasks/:taskId/comments', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, tasks.getComments);
   app.post('/api/clubs/:clubId/tasks/:taskId/comments', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, tasks.addComment);
   app.delete('/api/clubs/:clubId/tasks/:taskId/comments/:commentId', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, tasks.deleteComment);
@@ -78,7 +69,6 @@ export async function registerRoutes(app: FastifyInstance) {
   app.get('/api/clubs/:clubId/notes/:noteId', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, notes.getNote);
   app.patch('/api/clubs/:clubId/notes/:noteId', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, notes.updateNote);
   app.delete('/api/clubs/:clubId/notes/:noteId', { preHandler: [authenticate, requireClubRole(ClubRole.MEMBER)] }, notes.deleteNote);
-  // Tags
   app.get('/api/tags', { preHandler: [authenticate] }, notes.getTags);
   app.post('/api/tags', { preHandler: [authenticate] }, notes.createTag);
 
@@ -86,5 +76,10 @@ export async function registerRoutes(app: FastifyInstance) {
   app.get('/api/notifications', { preHandler: [authenticate] }, notifications.getNotifications);
   app.get('/api/notifications/unread-count', { preHandler: [authenticate] }, notifications.getUnreadCount);
   app.patch('/api/notifications/read-all', { preHandler: [authenticate] }, notifications.markAllRead);
-  app.patch('/api/notifications/:notificationId/read', { preHandler: [authenticate] }, notifications.markRead);
+  // notificationId param — typed via RouteGenericInterface
+  app.patch<{ Params: { notificationId: string } }>(
+    '/api/notifications/:notificationId/read',
+    { preHandler: [authenticate] },
+    notifications.markRead
+  );
 }
