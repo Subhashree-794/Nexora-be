@@ -1,0 +1,298 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  avatarUrl    String?
+  bio          String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships    ClubMember[]
+  assignedTasks  Task[]         @relation("AssignedTasks")
+  createdTasks   Task[]         @relation("CreatedTasks")
+  taskComments   TaskComment[]
+  taskHistory    TaskHistory[]
+  notes          Note[]
+  dailyUpdates   DailyUpdate[]
+  notifications  Notification[]
+  activityLogs   ActivityLog[]
+  refreshTokens  RefreshToken[]
+  meetingNotes   MeetingNote[]
+}
+
+// ─── Clubs ────────────────────────────────────────────────────────────────────
+
+model Club {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  logoUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members      ClubMember[]
+  meetings     Meeting[]
+  tasks        Task[]
+  notes        Note[]
+  dailyUpdates DailyUpdate[]
+  activityLogs ActivityLog[]
+  joinRequests JoinRequest[]
+}
+
+model ClubMember {
+  id       String   @id @default(uuid())
+  userId   String
+  clubId   String
+  role     ClubRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clubId])
+}
+
+model JoinRequest {
+  id           String             @id @default(uuid())
+  clubId       String
+  name         String
+  email        String
+  passwordHash String
+  status       JoinRequestStatus  @default(PENDING)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  club         Club               @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([email, clubId])
+}
+
+// ─── Meetings & MoM ───────────────────────────────────────────────────────────
+
+model Meeting {
+  id          String        @id @default(uuid())
+  clubId      String
+  title       String
+  agenda      String?
+  scheduledAt DateTime
+  location    String?
+  status      MeetingStatus @default(SCHEDULED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  club  Club          @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  notes MeetingNote[]
+  tasks Task[]
+}
+
+model MeetingNote {
+  id               String   @id @default(uuid())
+  meetingId        String
+  authorId         String
+  discussionPoints String   // Markdown
+  decisions        String   // Markdown
+  actionItems      String?  // Markdown
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id])
+}
+
+// ─── Tasks ────────────────────────────────────────────────────────────────────
+
+model Task {
+  id          String     @id @default(uuid())
+  clubId      String
+  meetingId   String?
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  priority    Priority   @default(MEDIUM)
+  dueDate     DateTime?
+  assigneeId  String?
+  createdById String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  club      Club          @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  meeting   Meeting?      @relation(fields: [meetingId], references: [id])
+  assignee  User?         @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  createdBy User          @relation("CreatedTasks", fields: [createdById], references: [id])
+  comments  TaskComment[]
+  history   TaskHistory[]
+}
+
+model TaskComment {
+  id        String   @id @default(uuid())
+  taskId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+}
+
+model TaskHistory {
+  id        String   @id @default(uuid())
+  taskId    String
+  userId    String
+  field     String   // e.g. "status", "assignee", "priority"
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ─── Daily Updates ────────────────────────────────────────────────────────────
+
+model DailyUpdate {
+  id          String   @id @default(uuid())
+  clubId      String
+  authorId    String
+  content     String   // Markdown
+  completedTasks String[] // task titles or IDs
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  club   Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+}
+
+// ─── Notes / Knowledge Base ───────────────────────────────────────────────────
+
+model Note {
+  id        String   @id @default(uuid())
+  clubId    String
+  authorId  String
+  title     String
+  content   String   // Markdown
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  club   Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  author User      @relation(fields: [authorId], references: [id])
+  tags   NoteTag[]
+}
+
+model Tag {
+  id    String    @id @default(uuid())
+  name  String
+  color String    @default("#6366f1")
+
+  notes NoteTag[]
+}
+
+model NoteTag {
+  noteId String
+  tagId  String
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Activity Log ─────────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  clubId    String
+  userId    String
+  action    String   // e.g. "created_task", "updated_meeting"
+  entity    String   // e.g. "Task", "Meeting"
+  entityId  String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum ClubRole {
+  OWNER
+  ADMIN
+  CORE_MEMBER
+  MEMBER
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_COMMENT
+  MEETING_REMINDER
+  MENTION
+  GENERAL
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
