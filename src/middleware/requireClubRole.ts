@@ -10,9 +10,9 @@ const roleHierarchy: Record<ClubRole, number> = {
 };
 
 export function requireClubRole(minRole: ClubRole) {
-  return async (req: FastifyRequest<{ Params: { clubId: string } }>, reply: FastifyReply) => {
+  return async (req: FastifyRequest<any>, reply: FastifyReply) => {
     const { userId } = req.user!;
-    const { clubId } = req.params;
+    const { clubId } = req.params as { clubId: string };
 
     const membership = await prisma.clubMember.findUnique({
       where: { userId_clubId: { userId, clubId } },
